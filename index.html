@@ -9,14 +9,53 @@
   <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.19/libs/cn/index.js"></script>
 
   <script>
-    new CozeWebSDK.WebChatClient({
-      config: {
-        bot_id: '7704956734930124842'
-      },
-      componentProps: {
-        title: 'Coze'
-      }
+  function getSessionName() {
+    let id = localStorage.getItem("coze_session_name");
+
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("coze_session_name", id);
+    }
+
+    return id;
+  }
+
+  async function getCozeToken() {
+    const response = await fetch("/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_name: getSessionName() }),
     });
-  </script>
-</body>
-</html>
+
+    const data = await response.json();
+
+    if (!response.ok || !data.access_token) {
+      throw new Error(data.error || "获取扣子令牌失败");
+    }
+
+    return data.access_token;
+  }
+
+  (async function initChat() {
+    try {
+      const token = await getCozeToken();
+
+      new CozeWebSDK.WebChatClient({
+        config: {
+          bot_id: "7704956734930124842",
+        },
+        auth: {
+          type: "token",
+          token: token,
+          onRefreshToken: getCozeToken,
+        },
+        componentProps: {
+          title: "Coze",
+        },
+      });
+    } catch (error) {
+      console.error("Chat SDK 初始化失败：", error);
+    }
+  })();
+</script>
+
